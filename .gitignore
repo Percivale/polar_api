@@ -1,4 +1,4 @@
 #Python stuff#
-__pycache__/*
+__pycache__
 #excel files
 *.xlsx
