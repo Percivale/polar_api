@@ -143,7 +143,7 @@ class PolarAccessLinkExample(object):
                     path = "activity_zones.xlsx"  
                     print("Exporting activity data to excel file... " + path)
                     #path = input("Enter the path and name of the excel file:\n (example: C:\\User\\MyFiles\\Polar_data\\Activity_summary.xlsx)\n")
-                    df_activity_summary.to_excel(path)
+                    df_act_zones.to_excel(path)
 
             elif item["data-type"] == "PHYSICAL_INFORMATION":
                 print("Collecting physical information...")
