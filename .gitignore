@@ -1,4 +1,110 @@
-#Python stuff#
-__pycache__
-#excel files
+# Office files
 *.xlsx
+
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Cmake
+CMakeLists.txt.user
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Testing
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps
+
+# Temporary files
+*~
+
+# Pytest
+.coverage
+.pytest_cache/
+
+# Private configuration settings
+.idea
+
+# Python installation stuff
+*.egg-info
+*.eggs
+
+# Build
+run/
+bin/
+build*/
+buildh/
+build64/
+build64h/
+build_win/
+build_linux/
+
+.vs/
+InputFiles/
+
+vtk/
+backup/
+
+
+# OS generated files:
+.DS_Store
+.DS_Store?
+*._
+
+# Misc
+Trash/
+__pycache__/
+
+# Temporary files
+tmp*/
+tmp*
+
+# Doconce Stuff
+__pycache__
+tmp_*
+automake*
+Trash
+.*_html_file_collection
+.*.exerinfo
+.*.copyright
+sphinx-rootdir
+sphinx-alabaster
+sphinx-pyramid
+*venues.list
+*.pub.bak
+
+# Publish directory #
+#####################
+pub
