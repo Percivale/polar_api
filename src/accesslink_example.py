@@ -4,7 +4,7 @@ from __future__ import print_function
 from typing import final
 from accesslink.endpoints import resource, transaction
 
-from utils import load_config, save_config, pretty_print_json
+from utils import load_config, save_config, pretty_print_json, write_json
 from accesslink import AccessLink
 import pandas as pd
 import requests
@@ -71,6 +71,7 @@ class PolarAccessLinkExample(object):
         pretty_print_json(available_data)
 
         for item in available_data["available-user-data"]:
+            print("Available data ", item["data-type"])
             if item["data-type"] == "EXERCISE":
                 self.get_exercises()
             elif item["data-type"] == "ACTIVITY_SUMMARY":
@@ -264,13 +265,22 @@ class PolarAccessLinkExample(object):
         resource_urls = transaction.list_activities()["activity-log"]
         activities = []
         act_zones=[]
+        fname="act_sum"
+        fname2="act_zone"
+        id=0
         for url in resource_urls:
+            id += 1
+            print("daily activity url ",url)
             activity_summary = transaction.get_activity_summary(url)
             activity_zones = transaction.get_zone_samples(url)  ##Hvis du tar med activity_zones får du med heart rate zones
             activities.append(activity_summary)
             act_zones.append(activity_zones)
             print("Activity summary:")
             pretty_print_json(activity_summary)
+            write_json(activity_summary,fname + str(id)+".json")
+            print("Activity zones:")
+            pretty_print_json(activity_zones)
+            write_json(activity_zones,fname2 + str(id)+".json")
         
 
         transaction.commit()

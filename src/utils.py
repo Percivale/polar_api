@@ -18,3 +18,7 @@ def save_config(config, filename):
 
 def pretty_print_json(data):
     print(json.dumps(data, indent=4, sort_keys=True))
+
+def write_json(data, fname):
+    with open(fname, 'w') as outfile:
+        json.dump(data, outfile)
