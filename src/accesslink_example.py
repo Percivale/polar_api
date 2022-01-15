@@ -9,6 +9,9 @@ from accesslink import AccessLink
 import pandas as pd
 import requests
 import numpy as np
+import os
+import shutil
+import glob
 
 
 try:
@@ -32,6 +35,11 @@ class PolarAccessLinkExample(object):
 
         self.accesslink = AccessLink(client_id=self.config["client_id"],
                                      client_secret=self.config["client_secret"])
+        self.sleep_file_=open("index_sleep.txt",'w')
+        self.ex_hr_file_=open("index_ex_hr.txt",'w')
+        self.nightly_rch_file_=open("index_nightly_recharge.txt",'w')
+        self.act_sum_file_=open("index_activity_summary.txt",'w')
+        self.phys_info_file_=open("index_physical_info.txt",'w')
 
         self.running = True
         self.show_menu()
@@ -42,18 +50,18 @@ class PolarAccessLinkExample(object):
                   "-----------------------\n" +
                   #"0) test new funcs \n" +
                   "1) Get all data\n"+
-                  "2) Exit\n" +
-                  "3) Trykk på 3 for å få excel fil\n"+
+                  "2) Trykk på 2 for å få excel fil\n"+
+                  "3) Exit\n" +
                   "-----------------------")
             self.get_menu_choice()
 
     def get_menu_choice(self):
         choice = input("> ")
         {
-            "2": self.exit,
+            "3": self.exit,
             #"0": print("Seconds to hours:\n ", self.sec_to_hours([3600, 20000, 12112]), "Index column test:\n ", self.index_col(["02.12.2021","02.12.2021", "03.12.2021", "04.12.2021", "04.12.2021"])),
             "1":self.get_available_data,
-            "3":self.format_excel,
+            "2":self.format_excel,
 
         }.get(choice, self.get_menu_choice)()
 
@@ -78,25 +86,44 @@ class PolarAccessLinkExample(object):
                 self.get_daily_activity()
             elif item["data-type"] == "PHYSICAL_INFORMATION":
                 self.get_physical_info()
+    
+    def move_all_json_files(self):
+        try:
+            os.mkdir('tmp')
+        except:
+            print('Directory tmp exists')
+
+        try:
+            dest_dir = "tmp/"
+            for file in glob.glob(r'*.json'):
+                shutil.move(file, dest_dir)
+                print(file,' --> ' +dest_dir+file)
+        except:
+            print('No files moved ')
+
 
     def get_available_data(self):
+        
+    
         all_data = pd.DataFrame()
         nights = self.get_sleep2()["nights"]
-
+        # ah
+        
         sleep_data = pd.DataFrame.from_dict(nights)
         print(sleep_data)
         all_data = all_data.append(sleep_data)
 
-        nr = self.get_nightly_recharge2()["recharges"]
+        nr = self.get_nightly_recharge2()["recharges"] 
         nightly_recharge = pd.DataFrame.from_dict(nr)
         all_data = all_data.merge(nightly_recharge, on = "date")
         #all_data = all_data.append(nightly_recharge)
         print(nightly_recharge)
         path = "sleep.xlsx"  
         print("Exporting sleep data to excel file... " + path)
- #       path = input("Enter the path and name of the excel file:\n (example: C:\\User\\MyFiles\\Polar_data\\Exercise_summary.xlsx)\n")
-               
+#       path = input("Enter the path and name of the excel file:\n (example: C:\\User\\MyFiles\\Polar_data\\Exercise_summary.xlsx)\n")
+            
         all_data.to_excel(path)
+
 
         available_data = self.accesslink.pull_notifications.list()
 
@@ -106,6 +133,7 @@ class PolarAccessLinkExample(object):
 
         print("Available data:")
         pretty_print_json(available_data)
+
 
         for item in available_data["available-user-data"]:
             print("Datatypes: ", item["data-type"])
@@ -137,13 +165,12 @@ class PolarAccessLinkExample(object):
 
                         df_activity_summary = df_activity_summary.append(df_activity)
                         df_act_zones = df_act_zones.append(df_activity_z)
-                    path = "activity.xlsx"  
+                    path = "activity_sum.xlsx"  
                     print("Exporting activity data to excel file... " + path)
                     #path = input("Enter the path and name of the excel file:\n (example: C:\\User\\MyFiles\\Polar_data\\Activity_summary.xlsx)\n")
                     df_activity_summary.to_excel(path)
-                    path = "activity_zones.xlsx"  
-                    print("Exporting activity data to excel file... " + path)
                     #path = input("Enter the path and name of the excel file:\n (example: C:\\User\\MyFiles\\Polar_data\\Activity_summary.xlsx)\n")
+                    path = "activity_zones.xlsx"  
                     df_act_zones.to_excel(path)
 
             elif item["data-type"] == "PHYSICAL_INFORMATION":
@@ -173,6 +200,11 @@ class PolarAccessLinkExample(object):
         self.exit()
 
     def exit(self):
+        self.sleep_file_.close()
+        self.ex_hr_file_.close()
+        self.nightly_rch_file_.close()
+        self.act_sum_file_.close()
+        self.phys_info_file_.close()
         self.running = False
 
     def get_exercises(self):
@@ -184,13 +216,21 @@ class PolarAccessLinkExample(object):
 
         resource_urls = transaction.list_exercises()["exercises"]
         exercises = []
-        for url in resource_urls:
+        fname='exercise'
+        fname2='heart_rate_zones'
+        for id,url in enumerate(resource_urls):
             exercise_summary = transaction.get_exercise_summary(url)
             exercise_hr = transaction.get_heart_rate_zones(url)
             exercises.append(exercise_hr)
             print("Exercise summary:")
             pretty_print_json(exercise_summary)
+            write_json(exercise_summary,fname + str(id)+".json")
+            write_json(exercise_hr ,fname2 + str(id)+".json")
             exercises.append(exercise_summary)
+            try:
+                self.ex_hr_file_.write(str(id)+'\t'+fname + str(id)+".json"+'\t'+fname2 + str(id)+".json")
+            except:
+                pass
         transaction.commit()
         return exercises
 
@@ -202,11 +242,16 @@ class PolarAccessLinkExample(object):
             return
         resource_urls = transaction.list_sleep()["sleep"]
         sleep_data = []
-
-        for url in resource_urls:
+        fname='sleep'
+        for id,url in enumerate(resource_urls):
             sleep_summary = transaction.get_sleep_summary(url)
             print("Sleep summary:")
             pretty_print_json(sleep_summary)
+            write_json(sleep_summary,fname+ str(id)+".json")
+            try:
+                self.sleep_file_.write(str(id)+'\t'+fname+ str(id)+".json")
+            except:
+                pass
             sleep_data.append(sleep_summary)
         transaction.commit()
         return sleep_data
@@ -214,24 +259,24 @@ class PolarAccessLinkExample(object):
     def get_sleep2(self):
         headers = {
         'Accept': 'application/json',
-        'Authorization': 'Bearer 2607ed26a2f65697e2b7378842710f62'
+        'Authorization': 'Bearer ' + str(self.config["access_token"])
         }
-
         r = requests.get('https://www.polaraccesslink.com/v3/users/sleep', params={
 
         }, headers = headers)
-        print(type(r))
+        write_json(r.json(),"sleep.json")
         return r.json()
 
     def get_nightly_recharge2(self):
         headers = {
         'Accept': 'application/json',
-        'Authorization': 'Bearer 2607ed26a2f65697e2b7378842710f62'
+        'Authorization': 'Bearer ' + str(self.config["access_token"])
         }
 
         r = requests.get('https://www.polaraccesslink.com/v3/users/nightly-recharge', params={
 
         }, headers = headers)
+        write_json(r.json(),"nightly_recharge.json")
 
         #print(type(r))
         #print(r.json())
@@ -246,11 +291,16 @@ class PolarAccessLinkExample(object):
             return
         resource_urls = transaction.list_nightly_recharge()["nightly_recharge"]
         nightly_recharge_data = []
-
-        for url in resource_urls:
+        fname='nightly_recharge'
+        for id,url in enumerate(resource_urls):
             nightly_recharge_summary = transaction.get_nightly_recharge_summary(url)
             #print("Nightly Recharge summary:")
             #pretty_print_json(nightly_recharge_summary)
+            write_json(nightly_recharge_summary,fname + str(id)+".json")
+            try:
+                self.nightly_rch_file_.write(str(id)+'\t'+fname + str(id)+".json")
+            except:
+                pass
             nightly_recharge_data.append(nightly_recharge_summary)
         transaction.commit()
         return nightly_recharge_data
@@ -281,8 +331,10 @@ class PolarAccessLinkExample(object):
             print("Activity zones:")
             pretty_print_json(activity_zones)
             write_json(activity_zones,fname2 + str(id)+".json")
-        
-
+            try:
+                self.act_sum_file_.write(str(id)+'\t'+fname + str(id)+".json"+'\t'+fname2 + str(id)+".json")
+            except:
+                pass        
         transaction.commit()
         return activities,act_zones
 
@@ -295,12 +347,18 @@ class PolarAccessLinkExample(object):
 
         resource_urls = transaction.list_physical_infos()["physical-informations"]
         physical_info_summary = []
-        for url in resource_urls:
+        fname='physical_information'
+        for id,url in enumerate(resource_urls):
             physical_info = transaction.get_physical_info(url)
             
             physical_info_summary.append(physical_info)
             print("Physical info:")
             pretty_print_json(physical_info)
+            write_json(physical_info,fname + str(id)+".json")
+            try:
+                self.phys_info_file_.write(str(id)+fname + str(id)+".json")
+            except:
+                pass
 
         transaction.commit()
         return physical_info_summary
@@ -464,7 +522,8 @@ class PolarAccessLinkExample(object):
 
         df = self.get_dataframes()
         print(df)
-        path = input("Write excel path:\n(example: C:\\User\\MyFiles\\Polar_data\\Exercise_summary.xlsx)\n")
+        path = "Exercise_summary.xlsx"
+        print('Writing to file: ' + path)
 
         df.to_excel(path)
         
@@ -488,8 +547,9 @@ class PolarAccessLinkExample(object):
             print("no exercise data")
 
         print(df)
-        path = input("Write excel path:\n")
-        final_df.to_excel("all_data.xlsx")
+        path = "all_data.xlsx"
+        print("Writing all data to file: "+ path)
+        final_df.to_excel(path)
         return 0
 
 

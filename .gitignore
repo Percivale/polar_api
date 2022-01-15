@@ -1,5 +1,5 @@
 # json files
-*.json
+#*.json
 
 # Office files
 *.xlsx
@@ -50,8 +50,7 @@ compile_commands.json
 CTestTestfile.cmake
 _deps
 
-# Temporary files
-*~
+
 
 # Pytest
 .coverage
@@ -93,7 +92,8 @@ __pycache__/
 # Temporary files
 tmp*/
 tmp*
-
+*~
+temp/
 # Doconce Stuff
 __pycache__
 tmp_*
