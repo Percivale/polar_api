@@ -1,11 +1,14 @@
-import requests
-headers = {
-  'Accept': 'application/json',
-  'Authorization': 'Bearer {access-token}'
-}
+#%%
+import numpy as np
+a=[]
+if a == []:
+    print('ja')
 
-r = requests.get('https://www.polaraccesslink.com/v3/users/50463526/activity-transactions/{transaction-id}/activities/{activity-id}/zone-samples', params={
-
-}, headers = headers)
-
-print( r.json())
+print('You have not collected any data, press Y and <enter> to continue')
+ans=input()
+if ans == 'Y' or ans =='y':
+    cont=True
+else:
+    cont=False
+print(cont)
+# %%
