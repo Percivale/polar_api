@@ -26,9 +26,70 @@ class JsonPolar:
         self.act_sum_flist=self.find_files(self.act_sum_root)
 
         self.all_data = pd.DataFrame()
+        self.df_all_sleep_data=pd.DataFrame()
+        self.df_all_daily_activity=pd.DataFrame()
+        self.df_sleep_daily_act=pd.DataFrame()
         self.zone=[0,1,2,3,4,5] # activitets soner 0=1, 1=2, etc.
 
-        self.date_list, self.tot_time_in_zone_date= self.get_tot_activity_zones_summary()
+        
+        # collect and store all data in self.df_all_sleep_data
+        self.get_sleep()
+        self.get_nightly_recharge()
+        # --------------all sleep data collected------------------------------------#
+        self.my_write_to_excel(self.df_all_sleep_data,"sleep_tmp.xlsx")
+
+        # collect all daily activity in self.df_all_daily_activity
+        self.get_daily_activity_zones()
+        self.my_write_to_excel(self.df_all_daily_activity,"dact.xlsx")
+
+        # merge data 
+        self.merge_activity_sleep()
+        self.my_write_to_excel(self.df_sleep_daily_act,"sleep_activity.xlsx")
+
+    def my_write_to_excel(self,df,file_name):
+        '''
+        give user a chance to close excel file
+        '''
+        file_not_closed=True
+        while file_not_closed:
+            try:
+                df.to_excel(file_name)
+                file_not_closed=False
+            except:
+                print(" File "+file_name+" not closed, please close before continue")
+                input("Press Enter to continue...")
+        print('Wrote file: '+file_name)
+
+    
+    def merge_activity_sleep(self):
+        if not self.df_all_sleep_data.empty and not self.df_all_daily_activity.empty:
+            self.df_sleep_daily_act=self.df_all_sleep_data.set_index('date').join(self.df_all_daily_activity.set_index('date'))
+        else:
+            if self.df_all_sleep_data.empty:
+                print('No sleep data, cannot merge with daily activity')
+            if self.df_all_daily_activity.empty:
+                print('No daily activity, cannot merge with sleep data')
+
+        
+    
+    def get_daily_activity_zones(self):
+        if len(self.act_zone_flist)>0:
+            self.date_list, self.tot_time_in_zone_date,self.active_steps_daily,self.duration = self.get_tot_activity_zones_summary()
+            self.df_all_daily_activity["date"]=self.date_list
+            self.df_all_daily_activity["Activity_steps"]=self.active_steps_daily
+            self.df_all_daily_activity["Polar_aktiv_tid"]=self.duration
+            cat=['rest','seated','standing','walking','running','not_used']
+            zone_name=['1_','2_','3_','4_','5_','0_']
+            for idx,zone in enumerate(self.zone):
+                name='Activity_zone_'+zone_name[idx]+cat[idx]
+                self.df_all_daily_activity[name]=self.tot_time_in_zone_date[:,zone]
+            self.df_all_daily_activity.set_index('date')
+        else:
+            print('No daily activity available')
+        
+
+
+
     
     def get_sleep(self):
 
@@ -46,7 +107,8 @@ class JsonPolar:
             self.sleep_data["unrecognized_sleep_stage"] = self.sec_to_hours(self.sleep_data["unrecognized_sleep_stage"])
             self.sleep_data["total_interruption_duration"] = self.sec_to_hours(self.sleep_data["total_interruption_duration"])
 
-            self.all_data = self.all_data.append(self.sleep_data, ignore_index=True)
+            self.df_all_sleep_data = self.df_all_sleep_data.append(self.sleep_data, ignore_index=True)
+            self.df_all_sleep_data.set_index('date')
         else:
             print('No sleep data available')
         
@@ -57,9 +119,9 @@ class JsonPolar:
 
             self.nightly_recharge = pd.DataFrame.from_dict(self.nr)
 
-            self.all_data = self.all_data.merge(self.nightly_recharge, on = "date")
-            self.all_data = self.all_data.sort_values(by ='date')
-            self.all_data = self.all_data.reset_index(drop = True)
+            self.df_all_sleep_data = self.df_all_sleep_data.merge(self.nightly_recharge, on = "date")
+            self.df_all_sleep_data = self.df_all_sleep_data.sort_values(by ='date')
+            self.df_all_sleep_data = self.df_all_sleep_data.reset_index(drop = True)
         else:
             print('No nightly recharge data available')
     
@@ -184,18 +246,24 @@ class JsonPolar:
         except:
             return 0.
 
-    def convert_string_to_min(self,str_json):
+    def convert_string_to_min(self,str_json,datetime=False):
         to_split=['H','M','S']
         conversion=[60,1,1./60]
+        sep=[':',':','']
         total_time=0.
+        total_time_str=''
         if str_json:
             str1=str_json.split('PT') #remove PT
             for idx,c in enumerate(to_split):
                 str1=str1[1].split(c)
                 if len(str1)==1:
-                    str1.insert(0,'0')
+                    str1.insert(0,'00')
                 total_time += conversion[idx]*self.convert_to_float(str1[0])
-            return total_time
+                total_time_str += str1[0]+sep[idx]
+            if not datetime:
+                return total_time
+            else:
+                return total_time_str
         else:
             print('Empty String : ', str_json)
             return 0
@@ -226,12 +294,19 @@ class JsonPolar:
                 f.close()
             date_list=unique(date_list)
             time_zone_date=[]
+            active_step=[]
+            duration=[]
             for date in date_list:
-                time_zone_date.append(self.get_tot_time_in_zone_date(date))
+                ti,act_step,di=self.get_tot_time_in_zone_date(date)
+                time_zone_date.append(ti)
+                active_step.append(act_step)
+                duration.append(self.convert_string_to_min(di,datetime=True))
+
         else:
             print('No activity zones and summary data avilable')
-            
-        return date_list, time_zone_date
+            return False
+ 
+        return np.array(date_list), np.array(time_zone_date),np.array(active_step),np.array(duration)
 
 
 
@@ -241,6 +316,7 @@ class JsonPolar:
         date zone data (currently the one with most minutes)
         '''
         total_time_zone=np.zeros(6)
+        tot_active_steps=0
         for i,file in enumerate(self.act_sum_flist):
             f = open(file)
             data=json.load(f)
@@ -249,74 +325,19 @@ class JsonPolar:
                 time_in_file=self.get_zones_json_file(fname2)
                 if np.sum(time_in_file) >= np.sum(total_time_zone):
                     total_time_zone=time_in_file
+                    tot_active_steps=data['active-steps']
+                    tot_duration=data['duration']
         if datetime:
-            return self.convert_np_to_datetime(total_time_zone)
+            return self.convert_np_to_datetime(total_time_zone),tot_active_steps,tot_duration
         else:
-            return total_time_zone
+            return total_time_zone,tot_active_steps,tot_duration
 
     def convert_np_to_datetime(self,arr):
         l=[]
         for elem in arr:
             l.append(str(datetime.timedelta(minutes=elem)))
         return l
-#read_sleep()
-#read_excercise()
-Test=JsonPolar()
-Test.get_sleep() 
-Test.get_nightly_recharge()
-Test.all_data.to_excel("tmp.xlsx")
-Test.get_exercise()
-Test.all_data.to_excel("tmp2.xlsx")  # blir bare tull
 
-print(Test.date_list)
-print(Test.tot_time_in_zone_date)
-
-
-#Test.get_activity_summary()
-
-#%%
 if __name__=='__main__':
-    date,zone=get_data_from_json()
-    #%%
-    try:
-        os.chdir('tmp')
-    except:
-        pass
-    date='2022-01-07'
-    zone_file='act_zone'
-    sum_file='act_sum'
-    total_time_zone=np.zeros(6)
-    for i in range(1,51):
-        f = open(sum_file+str(i)+'.json')
-        data=json.load(f)
-        if date == data['date']:
-            print(data)
-            fname2=zone_file+str(i)+'.json'
-            time_in_file=get_zones_json_file(fname2)
-            total_time_zone += time_in_file
-            print(time_in_file, ' file: ', fname2)
-    print('Overall Time ', total_time_zone)
-
-    
-
-
-#%%
-    f = open('act_sum1.json')
-    f2=open('act_zone1.json')
-
-
-    # returns JSON object as
-    # a dictionary
-    data = json.load(f)
-    data2 =json.load(f2)
-    zone=0
-    total_time=0.
-    for d in data2['samples']:
-        d1=d['activity-zones']
-        d2=d1[zone]
-        d3=d2.get('inzone')
-        print(d3)
-        total_time += convert_string_to_min(d3)
-        print(total_time)
-
+    Test=JsonPolar()
 # %%
