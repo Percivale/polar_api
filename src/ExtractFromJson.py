@@ -64,6 +64,10 @@ class JsonPolar:
         # merge data 
         if(self.merge_activity_sleep()):
             self.my_write_to_excel(self.df_sleep_daily_act,"sleep_activity.xlsx")
+        
+        # get exercise_data
+        self.get_exercise()
+        self.my_write_to_excel(self.df_exercise_summary,'exercise_tmp.xlsx')
 
     def my_write_to_excel(self,df,file_name):
         '''
@@ -320,7 +324,7 @@ class JsonPolar:
                 data=json.load(f)
                 date_list.append(data['date'])
                 f.close()
-            date_list=unique(date_list)
+            date_list= unique(date_list)
             time_zone_date=[]
             active_step=[]
             duration=[]
