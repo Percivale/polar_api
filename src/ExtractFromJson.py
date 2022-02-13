@@ -112,39 +112,44 @@ class JsonPolar:
         
 
 
-
     
     def get_sleep(self):
 
         self.all_sleep_data=self.get_json_data(self.sleep_root+self.ext)
         if not self.all_sleep_data is False:
-            self.nights=self.all_sleep_data['nights']
-            self.sleep_data = pd.DataFrame.from_dict(self.nights)
-            self.sleep_data["Timer_nattesøvn"] = (self.sleep_data["light_sleep"] + self.sleep_data["deep_sleep"] + self.sleep_data["rem_sleep"] + self.sleep_data["unrecognized_sleep_stage"] +
-                                            self.sleep_data["total_interruption_duration"])
+            try:
+                self.nights=self.all_sleep_data['nights']
+                self.sleep_data = pd.DataFrame.from_dict(self.nights)
+                self.sleep_data["Timer_nattesøvn"] = (self.sleep_data["light_sleep"] + self.sleep_data["deep_sleep"] + self.sleep_data["rem_sleep"] + self.sleep_data["unrecognized_sleep_stage"] +
+                                                self.sleep_data["total_interruption_duration"])
 
-            self.sleep_data["light_sleep"] = self.sec_to_hours(self.sleep_data["light_sleep"])
-            self.sleep_data["deep_sleep"] = self.sec_to_hours(self.sleep_data["deep_sleep"])
-            self.sleep_data["rem_sleep"] = self.sec_to_hours(self.sleep_data["rem_sleep"])
-            self.sleep_data["Timer_nattesøvn"] = self.sec_to_hours(self.sleep_data["Timer_nattesøvn"])
-            self.sleep_data["unrecognized_sleep_stage"] = self.sec_to_hours(self.sleep_data["unrecognized_sleep_stage"])
-            self.sleep_data["total_interruption_duration"] = self.sec_to_hours(self.sleep_data["total_interruption_duration"])
+                self.sleep_data["light_sleep"] = self.sec_to_hours(self.sleep_data["light_sleep"])
+                self.sleep_data["deep_sleep"] = self.sec_to_hours(self.sleep_data["deep_sleep"])
+                self.sleep_data["rem_sleep"] = self.sec_to_hours(self.sleep_data["rem_sleep"])
+                self.sleep_data["Timer_nattesøvn"] = self.sec_to_hours(self.sleep_data["Timer_nattesøvn"])
+                self.sleep_data["unrecognized_sleep_stage"] = self.sec_to_hours(self.sleep_data["unrecognized_sleep_stage"])
+                self.sleep_data["total_interruption_duration"] = self.sec_to_hours(self.sleep_data["total_interruption_duration"])
 
-            self.df_all_sleep_data = self.df_all_sleep_data.append(self.sleep_data, ignore_index=True)
-            self.df_all_sleep_data.set_index('date')
+                self.df_all_sleep_data = self.df_all_sleep_data.append(self.sleep_data, ignore_index=True)
+                self.df_all_sleep_data.set_index('date')
+            except:
+                print('check file: ', self.sleep_root+self.ext, ' some data are missing')
         else:
             print('No sleep data available')
         
     def get_nightly_recharge(self):
         self.all_nightly_recharge=self.get_json_data(self.nightly_rc_root+ self.ext)
         if not self.all_nightly_recharge is False:
-            self.nr=self.all_nightly_recharge["recharges"]
+            try:
+                self.nr=self.all_nightly_recharge["recharges"]
 
-            self.nightly_recharge = pd.DataFrame.from_dict(self.nr)
+                self.nightly_recharge = pd.DataFrame.from_dict(self.nr)
 
-            self.df_all_sleep_data = self.df_all_sleep_data.merge(self.nightly_recharge, on = "date")
-            self.df_all_sleep_data = self.df_all_sleep_data.sort_values(by ='date')
-            self.df_all_sleep_data = self.df_all_sleep_data.reset_index(drop = True)
+                self.df_all_sleep_data = self.df_all_sleep_data.merge(self.nightly_recharge, on = "date")
+                self.df_all_sleep_data = self.df_all_sleep_data.sort_values(by ='date')
+                self.df_all_sleep_data = self.df_all_sleep_data.reset_index(drop = True)
+            except:
+                print('Check file: ', self.nightly_rc_root+ self.ext, ' data are missing' )
         else:
             print('No nightly recharge data available')
     
@@ -348,18 +353,32 @@ class JsonPolar:
                 time_in_file=self.get_zones_json_file(fname2)
                 if np.sum(time_in_file) >= np.sum(total_time_zone):
                     total_time_zone=time_in_file
-                    tot_active_steps=data['active-steps']
-                    tot_duration=data['duration']
+                    tot_active_steps=self.get_from_dict('active-steps',data)
+                    tot_duration=self.get_from_dict('duration',data)
         if datetime:
             return self.convert_np_to_datetime(total_time_zone),tot_active_steps,tot_duration
         else:
             return total_time_zone,tot_active_steps,tot_duration
+    
+    def get_from_dict(self,name,dict):
+        try:
+            return dict[name]
+        except:
+            print('No ', name , ' available')
+            return 0
 
     def convert_np_to_datetime(self,arr):
         l=[]
         for elem in arr:
             l.append(str(datetime.timedelta(minutes=elem)))
         return l
+
+    def get_col_data(self,col_name,unique_name,df):
+        try:
+            return df.loc[df[col_name] == unique_name]
+        except:
+            print('Could not find data for '+ unique_name)
+            return pd.DataFrame()
 
 if __name__=='__main__':
     Test=JsonPolar()

@@ -1,6 +1,10 @@
 # json files
 #*.json
 
+#data directory
+data/
+polar_data/
+
 # Office files
 *.xlsx
 

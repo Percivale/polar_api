@@ -1,10 +1,5 @@
 #%%
 import numpy as np
-from datetime import date
-
-today = date.today()
-print("Today's date:", today)
-
 a=[]
 if a == []:
     print('ja')
