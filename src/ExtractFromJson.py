@@ -4,7 +4,7 @@ import numpy as np
 import os,glob
 import datetime
 import pandas as pd
-
+from dateutil.parser import parse
 from numpy.lib.arraysetops import unique
 
 class JsonPolar:
@@ -114,9 +114,6 @@ class JsonPolar:
             print('No daily activity available')
             return False
         
-
-
-    
     def get_sleep(self):
 
         self.all_sleep_data=self.get_json_data(self.sleep_root+self.ext)
@@ -157,56 +154,34 @@ class JsonPolar:
         else:
             print('No nightly recharge data available')
     
+    def get_start_time(self,dict):
+        T=parse(dict['start-time'])
+        return 
+
     def get_exercise(self):
-        full_file_list=self.pair_list(self.hr_flist,self.exer_flist)
-        print(full_file_list)
-        self.all_exercise_data=self.get_json_file_list(full_file_list)
-        if self.all_exercise_data is not False:
-            self.df_exercise_summary = pd.DataFrame()
-            for exercise in self.all_exercise_data:
-                df_exercise = pd.DataFrame.from_dict(exercise, orient = "index").T #gjør exercise data til dataframe
-                print(df_exercise)
-                self.df_exercise_summary = self.df_exercise_summary.append(df_exercise, ignore_index=True)
-            self.df_exercise_summary[["date", "time"]] = self.df_exercise_summary["start-time"].str.split("T", expand = True) #Splitter start-time kolonnen i to; date og time. 
-            print(self.df_exercise_summary)
-            #df_exercise_summary.drop("start-time")
-            self.df_exercise_summary = pd.concat([self.df_exercise_summary.drop(['heart-rate'], axis=1), self.df_exercise_summary['heart-rate'].apply(pd.Series)], axis=1) #splitter dataen i heart-rate i to: maximum-heartrate og average-heart-rate
-            self.df_exercise_summary = self.df_exercise_summary.rename(columns={"time":"Starttime_exercise", "duration":"Time_recorded_Polar", "average":"Average_HR_exercise", "maximum":"Peak_HR_exercise"})
-            try:
-                self.df_exercise_summary = self.df_exercise_summary.rename(columns={"training-load":"Vurdert_økt_belastning"}) 
-            except:
-                print("No training load available")
-            try:
-                self.all_data = self.all_data.merge(self.df_exercise_summary, on="date") #slår sammen exercise data med den andre dataen basert på datoen. Må vær
-                                                                                    #obs på at mer enn en exercise kan skje samme dagen....
-            except:
-                self.all_data = self.all_data.append(self.df_exercise_summary, ignore_index=True)
-        else:
-            print('No exercise data available')
+        if len(self.hr_flist)>0:
+            times=['date','start_time','duration','heart_rate-average','heart_rate-maximum']
+            pt_times=['start-time','duration']
+            ac_zone_names=['Activity_zone_0_not_used',\
+                'Activity_zone_1_rest','Activity_zone_2_seated','Activity_zone_3_standing',\
+                    'Activity_zone_4_walking']
+            #df=pd.DataFrame(times+ac_zone_names)
+            df=pd.DataFrame()
+            dict={}
+            for hr_file,exer_file in zip(self.hr_flist,self.exer_flist):
+                exer_json=self.get_json_data(exer_file)
+                T=parse(exer_json['start-time'])
+                dict[times[0]]=T.date()
+                dict[times[1]]=T.time()
+                dict[times[2]]=str(datetime.timedelta(minutes=self.convert_string_to_min(exer_json.get('duration'))))
+                dict[times[3]]=exer_json.get('heart-rate')['average']
+                dict[times[4]]=exer_json.get('heart-rate')['maximum']
+                in_zones=self.get_exer_zones_json_file(hr_file)
+                for idx,act in enumerate(ac_zone_names):
+                    dict[act]=in_zones[idx]
+                df=df.append(dict,ignore_index = True)
+        self.df_exercise_summary=df
     
-    def get_activity_summary(self):
-        '''
-        Kaja: Dette ser ikke ut til å virke
-        '''
-        self.all_activity_summary=self.get_json_file_list(self.act_sum_flist)
-        if self.all_activity_summary is not False:
-            self.df_activity_summary = pd.DataFrame()
-            for activity in self.all_activity_summary:
-                df_activity = pd.DataFrame.from_dict(activity, orient = "index").T
-                self.df_activity_summary = self.df_activity_summary.append(df_activity[["date", "active-steps"]]) #er bare interessert i skritt telling, og trenger date for å merge i rett rad
-            
-            ##Mer enn en activity summary kan komme for en dag. Da vil vi ha den som har mest steg for den dagen siden det er den dataen som er mest oppdatert
-            self.dictionary = {}
-            for idx,date in enumerate(self.df_activity_summary["date"]):
-                self.dictionary[date] = max(self.df_activity_summary.iloc[[idx]]["active-steps"])
-            date_steps = pd.DataFrame.from_dict(self.dictionary, orient = "index").T #gjør dictionarien om til dataframe
-            print(date_steps)
-            self.all_data = self.all_data.merge(date_steps, on = "date") #merger anntall steg med resten av dataen
-            self.all_data.rename(columns = {"active-steps": "Polar_steps"})
-            print(self.all_data)
-            
-        else:
-            print('No activity summary available')
 
     def get_json_file_list(self,list):
         data=[]
@@ -242,7 +217,7 @@ class JsonPolar:
 
     def sec_to_hours(self, column):
         '''
-        Kaja: skriv doc streng
+        .....
         '''
         hours = list(np.zeros(len(column)))
         minutes = list(np.zeros(len(column)))
@@ -301,6 +276,7 @@ class JsonPolar:
             return 0
         
     def get_zones_json_file(self,file_name):
+        ''' activity zones '''
         f = open(file_name)
         zone_data=len(self.zone)*[0.]
         data = json.load(f)
@@ -310,6 +286,17 @@ class JsonPolar:
                 d2=d1[z]
                 d3=d2.get('inzone')
                 zone_data[z]+= self.convert_string_to_min(d3)
+        return np.array(zone_data)
+
+    def get_exer_zones_json_file(self,file_name):
+        ''' exercise zones'''
+        f = open(file_name)
+        data = json.load(f)
+        print(data)
+        zone_data=[]
+        for d in data['zone']:
+            d2=d.get('in-zone')
+            zone_data.append(str(datetime.timedelta(minutes=self.convert_string_to_min(d2))))
         return np.array(zone_data)
 
     def get_tot_activity_zones_summary(self):
@@ -383,7 +370,14 @@ class JsonPolar:
         except:
             print('Could not find data for '+ unique_name)
             return pd.DataFrame()
+    
+
 
 if __name__=='__main__':
+    os.chdir('test_data')
     Test=JsonPolar()
+
+
+
+
 # %%
