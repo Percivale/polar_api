@@ -78,9 +78,11 @@ class JsonPolar:
             try:
                 df.to_excel(file_name)
                 file_not_closed=False
-            except:
-                print(" File "+file_name+" not closed, please close before continue")
-                input("Press Enter to continue...")
+            except Exception as e:
+                print("The following exception occurred ", e.__class__)
+                print(" If file "+file_name+" not closed, please close before continue")
+                input("Press enter after closing to continue")
+                
         print('Wrote file: '+file_name)
 
     
