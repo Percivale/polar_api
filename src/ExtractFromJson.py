@@ -13,6 +13,12 @@ class JsonPolar:
                  act_sum_list=[],phys_info_list=[]):
         # file root names
         self.sleep_root='sleep'
+        self.sleep_col_to_skip=['polar_user_x','sleep_start_time',
+        'sleep_end_time','device_id','continuity','continuity_class','unrecognized_sleep_stage',
+        'sleep_rating','sleep_goal','short_interruption_duration','long_interruption_duration',
+        'sleep_cycles','group_duration_score','group_solidity_score','group_regeneration_score',
+        'hypnogram','heart_rate_samples','polar_user_y','beat_to_beat_avg','hrv_samples','breathing_samples',
+        'ans_charge_status','sleep_charge']
         self.nightly_rc_root='nightly_recharge'
         self.exer_root='exercise'
         self.hr_root ='heart_rate_zones'
@@ -64,10 +70,31 @@ class JsonPolar:
         # merge data 
         if(self.merge_activity_sleep()):
             self.my_write_to_excel(self.df_sleep_daily_act,"sleep_activity.xlsx")
+            self.clean_sleep("sleep_activity_clean.xlsx")
         
         # get exercise_data
         self.get_exercise()
         self.my_write_to_excel(self.df_exercise_summary,'exercise_tmp.xlsx')
+    
+    def add_col_if_not(self,df,col_names):
+        for col in col_names:
+            if col not in df.columns:
+                print('Adding blank column : ', col)
+                df[col]=" "
+    
+    def clean_sleep(self,file_name):
+        new_order=['Activity_steps','Polar_aktiv_tid','Activity_zone_0_not_used',
+        		'Activity_zone_1_rest','Activity_zone_2_seated','Activity_zone_3_standing',
+                'Activity_zone_4_walking','Activity_zone_5_running','Timer_nattesøvn',
+                'light_sleep','deep_sleep','rem_sleep','total_interruption_duration',
+                'nightly_recharge_status','ans_charge','sleep_score','heart_rate_avg',
+                'heart_rate_variability_avg','breathing_rate_avg']
+        self.add_col_if_not(self.df_sleep_daily_act,self.sleep_col_to_skip)
+        df2=self.df_sleep_daily_act.drop(self.sleep_col_to_skip,axis=1)
+        print('drop succeeded')
+        self.add_col_if_not(df2,new_order)
+        df2=df2[new_order]
+        self.my_write_to_excel(df2,file_name)
 
     def my_write_to_excel(self,df,file_name):
         '''
@@ -162,7 +189,7 @@ class JsonPolar:
 
     def get_exercise(self):
         if len(self.hr_flist)>0:
-            times=['date','start_time','duration','heart_rate-average','heart_rate-maximum']
+            times=['date','start_time','duration','heart_rate-qaverage','heart_rate-maximum']
             pt_times=['start-time','duration']
             ac_zone_names=['Activity_zone_0_not_used',\
                 'Activity_zone_1_rest','Activity_zone_2_seated','Activity_zone_3_standing',\
@@ -176,13 +203,19 @@ class JsonPolar:
                 dict[times[0]]=T.date()
                 dict[times[1]]=T.time()
                 dict[times[2]]=str(datetime.timedelta(minutes=self.convert_string_to_min(exer_json.get('duration'))))
-                dict[times[3]]=exer_json.get('heart-rate')['average']
-                dict[times[4]]=exer_json.get('heart-rate')['maximum']
-                in_zones=self.get_exer_zones_json_file(hr_file)
-                for idx,act in enumerate(ac_zone_names):
-                    dict[act]=in_zones[idx]
-                df=df.append(dict,ignore_index = True)
-        self.df_exercise_summary=df
+                try:
+                    dict[times[3]]=exer_json.get('heart-rate')['average']    
+                    dict[times[4]]=exer_json.get('heart-rate')['maximum']                
+                    in_zones=self.get_exer_zones_json_file(hr_file)
+                    for idx,act in enumerate(ac_zone_names):
+                        dict[act]=in_zones[idx]
+                    df=df.append(dict,ignore_index = True)
+                    self.df_exercise_summary=df
+                except:
+                    print('Could not get average or maximum heart rate for file')
+                    print('exer_file '+exer_file)
+                
+        
     
 
     def get_json_file_list(self,list):
@@ -376,7 +409,11 @@ class JsonPolar:
 
 
 if __name__=='__main__':
-    os.chdir('test_data')
+#    os.chdir('test_data')
+    try:
+        os.chdir('../6046/')
+    except:
+        pass
     Test=JsonPolar()
 
 
