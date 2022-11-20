@@ -1,7 +1,10 @@
 #%%
 import numpy as np
 from datetime import date
+import pathlib as pt
 
+p=pt.Path('../../polar_data/6057')
+#%%
 today = date.today()
 print("Today's date:", today)
 

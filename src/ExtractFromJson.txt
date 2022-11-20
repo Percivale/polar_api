@@ -74,7 +74,7 @@ class JsonPolar:
         
         # get exercise_data
         self.get_exercise()
-        self.my_write_to_excel(self.df_exercise_summary,'exercise_tmp.xlsx',index=False)
+        self.my_write_to_excel(self.df_exercise_summary,'exercise_tmp.xlsx')
     
     def add_col_if_not(self,df,col_names):
         for col in col_names:
@@ -83,7 +83,7 @@ class JsonPolar:
                 df[col]=" "
     
     def clean_sleep(self,file_name):
-        new_order=['date','Activity_steps','Polar_aktiv_tid','Activity_zone_0_not_used',
+        new_order=['Activity_steps','Polar_aktiv_tid','Activity_zone_0_not_used',
         		'Activity_zone_1_rest','Activity_zone_2_seated','Activity_zone_3_standing',
                 'Activity_zone_4_walking','Activity_zone_5_running','Timer_nattesøvn',
                 'light_sleep','deep_sleep','rem_sleep','total_interruption_duration',
@@ -91,21 +91,19 @@ class JsonPolar:
                 'heart_rate_variability_avg','breathing_rate_avg']
         self.add_col_if_not(self.df_sleep_daily_act,self.sleep_col_to_skip)
         df2=self.df_sleep_daily_act.drop(self.sleep_col_to_skip,axis=1)
-        df2['date']=pd.to_datetime(df2.index)
         print('drop succeeded')
         self.add_col_if_not(df2,new_order)
         df2=df2[new_order]
-        self.my_write_to_excel(df2,file_name,index=False)
+        self.my_write_to_excel(df2,file_name)
 
-    def my_write_to_excel(self,df:pd.DataFrame,file_name,index=True):
+    def my_write_to_excel(self,df,file_name):
         '''
         give user a chance to close excel file
         '''
         file_not_closed=True
         while file_not_closed:
             try:
-                with pd.ExcelWriter(file_name,date_format='DD.MM.YYYY',datetime_format='DD.MM.YYYY',engine='xlsxwriter') as writer:
-                    df.to_excel(writer,index=index)
+                df.to_excel(file_name)
                 file_not_closed=False
             except Exception as e:
                 print("The following exception occurred ", e.__class__)
@@ -117,10 +115,7 @@ class JsonPolar:
     
     def merge_activity_sleep(self):
         if not self.df_all_sleep_data.empty and not self.df_all_daily_activity.empty:
-            self.df_sleep_daily_act=self.df_all_sleep_data.set_index('date').join(self.df_all_daily_activity.set_index('date'),how='outer')
-            self.df_sleep_daily_act['date2']=pd.to_datetime(self.df_sleep_daily_act.index)
-#            self.df_sleep_daily_act['date']=self.df_sleep_daily_act['date'].dt.strftime('%d.%m.%Y')
-#            self.df_sleep_daily_act.set_index('date')
+            self.df_sleep_daily_act=self.df_all_sleep_data.set_index('date').join(self.df_all_daily_activity.set_index('date'))
             return True
         else:
             if self.df_all_sleep_data.empty:
@@ -165,8 +160,7 @@ class JsonPolar:
                 self.sleep_data["unrecognized_sleep_stage"] = self.sec_to_hours(self.sleep_data["unrecognized_sleep_stage"])
                 self.sleep_data["total_interruption_duration"] = self.sec_to_hours(self.sleep_data["total_interruption_duration"])
 
-#                self.df_all_sleep_data = self.df_all_sleep_data.append(self.sleep_data, ignore_index=True)
-                self.df_all_sleep_data = pd.concat([self.df_all_sleep_data,self.sleep_data],ignore_index=True)
+                self.df_all_sleep_data = self.df_all_sleep_data.append(self.sleep_data, ignore_index=True)
                 self.df_all_sleep_data.set_index('date')
             except:
                 print('check file: ', self.sleep_root+self.ext, ' some data are missing')
@@ -206,25 +200,21 @@ class JsonPolar:
             for hr_file,exer_file in zip(self.hr_flist,self.exer_flist):
                 exer_json=self.get_json_data(exer_file)
                 T=parse(exer_json['start-time'])
-                dict[times[0]]=[T.date()]
-                dict[times[1]]=[T.time()]
-                ll=str(datetime.timedelta(minutes=self.convert_string_to_min(exer_json.get('duration'))))
-                ll=ll.split(".")[0] # remove microseconds
-                dict[times[2]]=[ll]
+                dict[times[0]]=T.date()
+                dict[times[1]]=T.time()
+                dict[times[2]]=str(datetime.timedelta(minutes=self.convert_string_to_min(exer_json.get('duration'))))
                 try:
-                    dict[times[3]]=[exer_json.get('heart-rate')['average']]    
-                    dict[times[4]]=[exer_json.get('heart-rate')['maximum'] ]               
+                    dict[times[3]]=exer_json.get('heart-rate')['average']    
+                    dict[times[4]]=exer_json.get('heart-rate')['maximum']                
                     in_zones=self.get_exer_zones_json_file(hr_file)
                     for idx,act in enumerate(ac_zone_names):
-                        dict[act]=[in_zones[idx]]
-#                    df=df.append(dict,ignore_index = True)
-#                    self.df_exercise_summary=df
+                        dict[act]=in_zones[idx]
+                    df=df.append(dict,ignore_index = True)
+                    self.df_exercise_summary=df
                 except:
                     print('Could not get average or maximum heart rate for file')
                     print('exer_file '+exer_file)
-                dfi=pd.DataFrame(dict)
-                df=pd.concat([df,dfi],ignore_index=True)
-            self.df_exercise_summary=df
+                
         
     
 
@@ -337,7 +327,7 @@ class JsonPolar:
         ''' exercise zones'''
         f = open(file_name)
         data = json.load(f)
-#        print(data)
+        print(data)
         zone_data=[]
         for d in data['zone']:
             d2=d.get('in-zone')
@@ -421,7 +411,7 @@ class JsonPolar:
 if __name__=='__main__':
 #    os.chdir('test_data')
     try:
-        os.chdir('../6057/')
+        os.chdir('../6046/')
     except:
         pass
     Test=JsonPolar()
