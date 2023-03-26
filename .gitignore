@@ -4,6 +4,10 @@
 #data directory
 data/
 polar_data/
+test_data/
+
+#backup
+old_files/
 
 # Office files
 *.xlsx
