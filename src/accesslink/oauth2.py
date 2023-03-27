@@ -93,7 +93,7 @@ class OAuth2Client(object):
             del kwargs["access_token"]
         elif "auth" not in kwargs:
             kwargs["auth"] = HTTPBasicAuth(self.client_id, self.client_secret)
-
+        print('xxx=',kwargs)
         return kwargs
 
     def __build_request_kwargs(self, **kwargs):

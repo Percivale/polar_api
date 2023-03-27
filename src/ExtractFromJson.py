@@ -8,7 +8,7 @@ from dateutil.parser import parse
 from numpy.lib.arraysetops import unique
 
 class JsonPolar:
-    def __init__(self,sleep_file='',rch_file='',
+    def __init__(self,sleep_file='',rch_file='', load_file='',
                  exer_f_list=[],hr_f_list=[],act_z_list=[],
                  act_sum_list=[],phys_info_list=[]):
         # file root names
@@ -33,6 +33,10 @@ class JsonPolar:
             self.nightly_rch_flist=self.find_files(self.nightly_rc_root)
         else:
             self.nightly_rch_flist=rch_file
+        if load_file == '':
+            self.load_file='training_load.json'
+        else:
+            self.load_file=load_file
         if exer_f_list == []:
             self.exer_flist=self.find_files(self.exer_root)
         else:
@@ -421,7 +425,7 @@ class JsonPolar:
 if __name__=='__main__':
 #    os.chdir('test_data')
     try:
-        os.chdir('../6057/')
+        os.chdir('../REST_X/')
     except:
         pass
     Test=JsonPolar()

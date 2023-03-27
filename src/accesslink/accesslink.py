@@ -40,3 +40,18 @@ class AccessLink(object):
         :param authorization_code: authorization code received from authorization endpoint.
         """
         return self.oauth.get_access_token(authorization_code)
+    
+    def get_exercises(self, access_token):
+        return self.oauth.get(endpoint="/exercises", access_token=access_token)
+
+    def get_trainingload(self, access_token):
+        return self.oauth.get(endpoint="/users/cardio-load/", access_token=access_token)
+    
+    def get_sleep(self, access_token):
+        return self.oauth.get(endpoint="/users/sleep/", access_token=access_token)
+    
+    def get_recharge(self, access_token):
+        return self.oauth.get(endpoint="/users/nightly-recharge/", access_token=access_token)
+
+    def get_userdata(self, user_id,access_token):
+        return self.oauth.get(endpoint="/users/"+ str(user_id), access_token= access_token)

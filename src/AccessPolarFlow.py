@@ -39,6 +39,7 @@ class PolarAccessLinkExample(object):
                                      client_secret=self.config["client_secret"])
         self.sleep_file_="sleep.json"
         self.nightly_rch_file_="nightly_recharge.json"
+        self.training_load_file_="training_load.json"
         self.phys_info_file_list_=[]
         self.act_zone_file_list_=[]
         self.act_sum_file_list_=[]
@@ -46,6 +47,7 @@ class PolarAccessLinkExample(object):
         self.exer_file_list_=[]
 
         self.collected_data=False
+        self.count_tmp=0
 
         self.running = True
         self.show_menu()
@@ -56,19 +58,34 @@ class PolarAccessLinkExample(object):
                   "-----------------------\n" +
                   "1) Get all data\n"+
                   "2) Formater data fra json til excel\n"+
-                  "3) Exit\n" +
+                  "3) Print all data without discarding\n" +
+                  "4) Exit\n" +
                   "-----------------------")
             self.get_menu_choice()
 
     def get_menu_choice(self):
         choice = input("> ")
         {
-            "3": self.exit,
+            "4": self.exit,
             #"0": print("Seconds to hours:\n ", self.sec_to_hours([3600, 20000, 12112]), "Index column test:\n ", self.index_col(["02.12.2021","02.12.2021", "03.12.2021", "04.12.2021", "04.12.2021"])),
             "1":self.get_available_data,
             "2":self.format_json,
+            "3":self.print_data, 
         }.get(choice, self.get_menu_choice)()
-    
+
+    def print_data(self):
+        exercise = self.accesslink.get_exercises(access_token=self.config["access_token"])
+        load = self.accesslink.get_trainingload(access_token=self.config["access_token"])
+        sleep =  self.accesslink.get_sleep(access_token=self.config["access_token"])
+        recharge = self.accesslink.get_recharge(access_token=self.config["access_token"])
+
+        print("exercises: ", end = '')
+        pretty_print_json(exercise)
+        pretty_print_json(load)
+        pretty_print_json(sleep)
+        pretty_print_json(recharge)
+
+
     def format_json(self):
         cont=True
         if not self.collected_data:
@@ -137,6 +154,7 @@ class PolarAccessLinkExample(object):
     def get_available_data(self):
         self.collected_data=True
         # All sleep data to file
+        write_json(self.get_training_load(),self.training_load_file_)
         write_json(self.get_sleep(),self.sleep_file_)
         write_json(self.get_nightly_recharge(),self.nightly_rch_file_)
 
@@ -223,6 +241,14 @@ class PolarAccessLinkExample(object):
         }, headers = headers)
 
         return r.json()
+    
+    def get_training_load(self):
+        '''
+        Note function below should be equivalent to
+        r = requests.get('https://www.polaraccesslink.com/v3/users/cardio-load/', headers = headers)
+ 
+        '''
+        return self.accesslink.get_trainingload(access_token=self.config["access_token"])
 
     def get_daily_activity(self):
         transaction = self.accesslink.daily_activity.create_transaction(user_id=self.config["user_id"],
