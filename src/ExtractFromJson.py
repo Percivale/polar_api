@@ -4,8 +4,9 @@ import numpy as np
 import os,glob
 import datetime
 import pandas as pd
-from dateutil.parser import parse
-from numpy.lib.arraysetops import unique
+import utils as u
+#from dateutil.parser import parse
+#from numpy.lib.arraysetops import unique
 
 class JsonPolar:
     def __init__(self,sleep_file='',rch_file='', load_file='',
@@ -65,21 +66,41 @@ class JsonPolar:
         self.get_sleep()
         self.get_nightly_recharge()
         # --------------all sleep data collected------------------------------------#
-        self.my_write_to_excel(self.df_all_sleep_data,"sleep_tmp.xlsx")
+        u.my_write_to_excel(self.df_all_sleep_data,"sleep_tmp.xlsx")
 
         # collect all daily activity in self.df_all_daily_activity
         if self.get_daily_activity_zones():
-            self.my_write_to_excel(self.df_all_daily_activity,"daily_activity_tmp.xlsx")
+            u.my_write_to_excel(self.df_all_daily_activity,"daily_activity_tmp.xlsx")
 
         # merge data 
         if(self.merge_activity_sleep()):
-            self.my_write_to_excel(self.df_sleep_daily_act,"sleep_activity.xlsx")
+            u.my_write_to_excel(self.df_sleep_daily_act,"sleep_activity.xlsx")
             self.clean_sleep("sleep_activity_clean.xlsx")
         
         # get exercise_data
         self.get_exercise()
-        self.my_write_to_excel(self.df_exercise_summary,'exercise_tmp.xlsx',index=False)
+        u.my_write_to_excel(self.df_exercise_summary,'exercise_tmp.xlsx',index=False)
+
+        # get training load
+        self.get_training_load()
+        u.my_write_to_excel(self.df_training_load,'training_load.xlsx',index=False)
     
+    def get_training_load(self):
+        load_data=self.get_json_data(self.load_file)
+        data={'date':[],'Status_kardiobelastning':[],'VurderingStatusKardiobelastning':[],
+              'TRIMP':[],'Belastning':[],'Toleranse':[]}
+        trans={'Status_kardiobelastning':'cardio_load_ratio','VurderingStatusKardiobelastning':'cardio_load_status',
+              'TRIMP':'cardio_load','Belastning':'strain','Toleranse':'tolerance'}
+        for li in load_data:
+            data['date'].append(li['date'])
+            for key in trans.keys():
+                data[key].append(li[trans[key]])
+        self.df_training_load=pd.DataFrame(data)
+        self.df_training_load['date']=pd.to_datetime(self.df_training_load['date'])
+
+
+
+        
     def add_col_if_not(self,df,col_names):
         for col in col_names:
             if col not in df.columns:
@@ -99,24 +120,9 @@ class JsonPolar:
         print('drop succeeded')
         self.add_col_if_not(df2,new_order)
         df2=df2[new_order]
-        self.my_write_to_excel(df2,file_name,index=False)
+        u.my_write_to_excel(df2,file_name,index=False)
 
-    def my_write_to_excel(self,df:pd.DataFrame,file_name,index=True):
-        '''
-        give user a chance to close excel file
-        '''
-        file_not_closed=True
-        while file_not_closed:
-            try:
-                with pd.ExcelWriter(file_name,date_format='DD.MM.YYYY',datetime_format='DD.MM.YYYY',engine='xlsxwriter') as writer:
-                    df.to_excel(writer,index=index)
-                file_not_closed=False
-            except Exception as e:
-                print("The following exception occurred ", e.__class__)
-                print(" If file "+file_name+" not closed, please close before continue")
-                input("Press enter after closing to continue")
-                
-        print('Wrote file: '+file_name)
+    
 
     
     def merge_activity_sleep(self):
@@ -216,8 +222,9 @@ class JsonPolar:
                 ll=ll.split(".")[0] # remove microseconds
                 dict[times[2]]=[ll]
                 try:
+                    dict[times[4]]=[exer_json.get('heart-rate')['maximum'] ] 
                     dict[times[3]]=[exer_json.get('heart-rate')['average']]    
-                    dict[times[4]]=[exer_json.get('heart-rate')['maximum'] ]               
+                                  
                     in_zones=self.get_exer_zones_json_file(hr_file)
                     for idx,act in enumerate(ac_zone_names):
                         dict[act]=[in_zones[idx]]
@@ -425,8 +432,9 @@ class JsonPolar:
 if __name__=='__main__':
 #    os.chdir('test_data')
     try:
-        os.chdir('../REST_X/')
+        os.chdir('../polar_data/REST_X/')
     except:
+        print('Could not change directory')
         pass
     Test=JsonPolar()
 
