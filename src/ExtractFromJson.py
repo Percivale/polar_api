@@ -5,8 +5,8 @@ import os,glob
 import datetime
 import pandas as pd
 import utils as u
-#from dateutil.parser import parse
-#from numpy.lib.arraysetops import unique
+from dateutil.parser import parse
+from numpy.lib.arraysetops import unique
 
 class JsonPolar:
     def __init__(self,sleep_file='',rch_file='', load_file='',

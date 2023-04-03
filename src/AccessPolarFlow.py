@@ -97,7 +97,7 @@ class PolarAccessLinkExample(object):
                 cont=False
         if cont:
             print('Converting json files to excel ....')
-            JS=EFJ.JsonPolar(self.sleep_file_,self.nightly_rch_file_,self.exer_file_list_,
+            JS=EFJ.JsonPolar(self.sleep_file_,self.nightly_rch_file_,self.training_load_file_,self.exer_file_list_,
                             self.heart_rate_zone_file_list_,self.act_zone_file_list_,self.act_sum_file_list_,
                             self.phys_info_file_list_)
         else:
